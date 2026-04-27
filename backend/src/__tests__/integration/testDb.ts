@@ -16,7 +16,8 @@ async function truncateAllTables() {
       rewards,
       transactions,
       campaigns,
-      users
+      users,
+      auth_challenges
     RESTART IDENTITY CASCADE
   `);
 }

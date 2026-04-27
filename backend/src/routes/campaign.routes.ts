@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
+import { asyncHandler } from "../middleware/errorHandler";
+import { requireAuth } from "../middleware/auth";
 import {
   getCampaigns,
   getCampaignById,
@@ -7,6 +9,7 @@ import {
   softDeleteCampaign,
   restoreCampaign,
 } from "../services/campaign.service";
+import { BadRequestError, NotFoundError, ForbiddenError } from "../utils/errors";
 
 export const campaignRouter = Router();
 
@@ -112,6 +115,8 @@ const ReorderSchema = z.object({
  *     summary: Reorder campaigns
  *     description: Persists the display order of campaigns for a merchant.
  *     tags: [Campaigns]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -137,44 +142,129 @@ const ReorderSchema = z.object({
  *                 ok: { type: boolean }
  *       400:
  *         description: Invalid request body.
+ *       401:
+ *         description: Unauthorized — missing or invalid JWT.
  *       500:
  *         description: Server error.
  */
-campaignRouter.patch("/reorder", asyncHandler(async (req: Request, res: Response) => {
-  const parsed = ReorderSchema.safeParse(req.body);
-  if (!parsed.success) {
-    throw new BadRequestError("Invalid request body", { errors: parsed.error.errors });
-  }
-});
+campaignRouter.patch(
+  "/reorder",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = ReorderSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new BadRequestError("Invalid request body", { errors: parsed.error.errors });
+    }
+    await reorderCampaigns(parsed.data.order);
+    res.json({ ok: true });
+  })
+);
 
 /**
- * DELETE /campaigns/:id
- * Soft-deletes a campaign by setting deleted_at.
+ * @openapi
+ * /campaigns/{id}:
+ *   delete:
+ *     summary: Soft-delete a campaign
+ *     description: Sets deleted_at on a campaign. Requires merchant authentication.
+ *     tags: [Campaigns]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Deletion successful.
+ *       400:
+ *         description: Invalid ID.
+ *       401:
+ *         description: Unauthorized — missing or invalid JWT.
+ *       403:
+ *         description: Forbidden — not the campaign owner.
+ *       404:
+ *         description: Campaign not found.
+ *       500:
+ *         description: Server error.
  */
-campaignRouter.delete("/:id", async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
-  try {
+campaignRouter.delete(
+  "/:id",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      throw new BadRequestError("Invalid id", { id: req.params.id });
+    }
+
+    const campaign = await getCampaignById(id);
+    if (!campaign) {
+      throw new NotFoundError("Campaign");
+    }
+    if (campaign.merchant !== req.merchant) {
+      throw new ForbiddenError("You do not own this campaign");
+    }
+
     const deleted = await softDeleteCampaign(id);
-    if (!deleted) return res.status(404).json({ error: "Not found" });
+    if (!deleted) {
+      throw new NotFoundError("Campaign");
+    }
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to delete campaign" });
-  }
-});
+  })
+);
 
 /**
- * POST /campaigns/:id/restore
- * Restores a soft-deleted campaign.
+ * @openapi
+ * /campaigns/{id}/restore:
+ *   post:
+ *     summary: Restore a soft-deleted campaign
+ *     description: Clears deleted_at on a campaign. Requires merchant authentication.
+ *     tags: [Campaigns]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Restore successful.
+ *       400:
+ *         description: Invalid ID.
+ *       401:
+ *         description: Unauthorized — missing or invalid JWT.
+ *       403:
+ *         description: Forbidden — not the campaign owner.
+ *       404:
+ *         description: Campaign not found or not deleted.
+ *       500:
+ *         description: Server error.
  */
-campaignRouter.post("/:id/restore", async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
-  try {
+campaignRouter.post(
+  "/:id/restore",
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      throw new BadRequestError("Invalid id", { id: req.params.id });
+    }
+
+    const campaign = await getCampaignById(id);
+    if (!campaign) {
+      throw new NotFoundError("Campaign");
+    }
+    if (campaign.merchant !== req.merchant) {
+      throw new ForbiddenError("You do not own this campaign");
+    }
+
     const restored = await restoreCampaign(id);
-    if (!restored) return res.status(404).json({ error: "Not found or not deleted" });
+    if (!restored) {
+      throw new NotFoundError("Campaign");
+    }
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to restore campaign" });
-  }
-});
+  })
+);
+

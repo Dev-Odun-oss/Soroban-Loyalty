@@ -76,6 +76,17 @@ const envSchema = z.object({
   /** Set to "false" to disable the on-chain event indexer. Default: true. */
   ENABLE_INDEXER: booleanString(true),
 
+  // ── Authentication ──────────────────────────────────────────────────────────
+  /** Secret key for signing JWTs. Required. */
+  JWT_SECRET: z.string().min(32),
+
+  /** JWT expiry in hours. Default: 1. */
+  JWT_EXPIRY_HOURS: z
+    .string()
+    .default("1")
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(168)),
+
   // ── Alerting ────────────────────────────────────────────────────────────────
   /** Slack Incoming Webhook URL for #alerts. Optional. */
   SLACK_WEBHOOK_URL: z.string().url().optional(),

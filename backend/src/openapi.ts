@@ -23,6 +23,14 @@ const options: swaggerJsdoc.Options = {
       },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description: "JWT token obtained from POST /auth/verify",
+        },
+      },
       schemas: {
         Campaign: {
           type: "object",

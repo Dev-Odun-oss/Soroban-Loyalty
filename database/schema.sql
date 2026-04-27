@@ -43,6 +43,15 @@ CREATE TABLE IF NOT EXISTS transactions (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS auth_challenges (
+    public_key      VARCHAR(56) PRIMARY KEY,
+    nonce           VARCHAR(128) NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_challenges_expires_at ON auth_challenges(expires_at);
+
 CREATE INDEX IF NOT EXISTS idx_rewards_user ON rewards(user_address);
 CREATE INDEX IF NOT EXISTS idx_rewards_user_claimed_at ON rewards(user_address, claimed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_rewards_campaign ON rewards(campaign_id);
