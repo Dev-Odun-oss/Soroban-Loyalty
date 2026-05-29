@@ -88,3 +88,18 @@ test("resets form after clicking create another", async () => {
   expect(screen.getByRole("button", { name: /review campaign/i })).toBeInTheDocument();
   expect(screen.getByLabelText(/campaign name/i)).toHaveValue("");
 });
+
+test("submit button is disabled while validation errors exist", () => {
+  setup();
+  // Trigger errors
+  fireEvent.click(screen.getByRole("button", { name: /review campaign/i }));
+  expect(screen.getByRole("button", { name: /review campaign/i })).toBeDisabled();
+});
+
+test("error clears when user corrects the field", () => {
+  setup();
+  fireEvent.click(screen.getByRole("button", { name: /review campaign/i }));
+  expect(screen.getByText(/campaign name is required/i)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(/campaign name/i), { target: { value: "Fixed Name" } });
+  expect(screen.queryByText(/campaign name is required/i)).not.toBeInTheDocument();
+});

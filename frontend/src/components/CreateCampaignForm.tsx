@@ -41,8 +41,11 @@ export function CreateCampaignForm({ publicKey, onSuccess }: Props) {
   const [txError, setTxError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
 
-  const set = (key: keyof FormFields) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (key: keyof FormFields) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFields((f) => ({ ...f, [key]: e.target.value }));
+    // Clear the error for this field as soon as the user starts correcting it
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
 
   const handleReview = (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,7 +182,7 @@ export function CreateCampaignForm({ publicKey, onSuccess }: Props) {
         {errors.expiresAt && <span id="ccf-expires-err" style={{ fontSize: "0.8rem", color: "#f87171" }}>{errors.expiresAt}</span>}
       </div>
 
-      <button type="submit" className="btn btn-primary">
+      <button type="submit" className="btn btn-primary" disabled={Object.keys(errors).length > 0}>
         Review Campaign
       </button>
     </form>
