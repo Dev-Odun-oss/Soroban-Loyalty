@@ -4,6 +4,7 @@ import { campaignRouter } from "./routes/campaign.routes";
 import { rewardRouter } from "./routes/reward.routes";
 import { analyticsRouter } from "./routes/analytics.routes";
 import { startIndexer, stopIndexer } from "./indexer/indexer";
+import { startExpiredCampaignJob } from "./jobs/expiredCampaigns";
 import { rpcServer } from "./soroban";
 import { pool } from "./db";
 import { registry, httpRequestsTotal, httpRequestDuration, dbPoolActive, dbPoolIdle, dbPoolWaiting } from "./metrics";
@@ -37,6 +38,7 @@ const server = app.listen(PORT, async () => {
   if (process.env.ENABLE_INDEXER !== "false") {
     await startIndexer();
   }
+  startExpiredCampaignJob();
 });
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────────
