@@ -5,7 +5,7 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
 import { isValidStellarAddress } from "../utils/validation";
-import { rewardsLimiter } from "../middleware/rateLimiter";
+import { rewardsLimiter, writeLimiter } from "../middleware/rateLimiter";
 
 export const rewardRouter = Router();
 
@@ -65,7 +65,7 @@ rewardRouter.get("/user/:address/rewards", rewardsLimiter, asyncHandler(async (r
  * POST /user/:address/rewards/claim
  * Inserts a reward claim once per (user, campaign). Duplicate claims return 409.
  */
-rewardRouter.post("/user/:address/rewards/claim", asyncHandler(async (req: Request, res: Response) => {
+rewardRouter.post("/user/:address/rewards/claim", writeLimiter, asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
   if (!isValidStellarAddress(address)) {
     throw new BadRequestError("Invalid Stellar address", { address });

@@ -11,7 +11,7 @@ function buildApp(env: Record<string, string>): Express {
   jest.resetModules();
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { globalLimiter, rewardsLimiter } = require("../middleware/rateLimiter");
+  const { globalLimiter, rewardsLimiter, writeLimiter } = require("../middleware/rateLimiter");
 
   const app = express();
   app.use(globalLimiter);
@@ -24,6 +24,10 @@ function buildApp(env: Record<string, string>): Express {
     res.json({ campaigns: [] });
   });
 
+  app.post("/campaigns", writeLimiter, (_req, res) => {
+    res.status(201).json({ ok: true });
+  });
+
   return app;
 }
 
@@ -31,12 +35,13 @@ describe("rate limiting", () => {
   afterEach(() => {
     delete process.env.RATE_LIMIT_WINDOW_MS;
     delete process.env.RATE_LIMIT_GLOBAL_MAX;
+    delete process.env.RATE_LIMIT_WRITE_MAX;
     delete process.env.RATE_LIMIT_REWARDS_MAX;
   });
 
   describe("global limiter", () => {
     it("allows requests under the limit", async () => {
-      const app = buildApp({ RATE_LIMIT_WINDOW_MS: "60000", RATE_LIMIT_GLOBAL_MAX: "5" });
+      const app = buildApp({ RATE_LIMIT_WINDOW_MS: "900000", RATE_LIMIT_GLOBAL_MAX: "5" });
 
       const res = await request(app).get("/campaigns");
 
@@ -44,7 +49,7 @@ describe("rate limiting", () => {
     });
 
     it("returns 429 after exceeding the global limit", async () => {
-      const app = buildApp({ RATE_LIMIT_WINDOW_MS: "60000", RATE_LIMIT_GLOBAL_MAX: "3" });
+      const app = buildApp({ RATE_LIMIT_WINDOW_MS: "900000", RATE_LIMIT_GLOBAL_MAX: "3" });
 
       // Exhaust the limit
       for (let i = 0; i < 3; i++) {
@@ -58,7 +63,7 @@ describe("rate limiting", () => {
     });
 
     it("includes Retry-After header on 429", async () => {
-      const app = buildApp({ RATE_LIMIT_WINDOW_MS: "60000", RATE_LIMIT_GLOBAL_MAX: "2" });
+      const app = buildApp({ RATE_LIMIT_WINDOW_MS: "900000", RATE_LIMIT_GLOBAL_MAX: "2" });
 
       for (let i = 0; i < 2; i++) {
         await request(app).get("/campaigns");
@@ -75,7 +80,7 @@ describe("rate limiting", () => {
     const address = "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN";
 
     it("allows requests under the rewards limit", async () => {
-      const app = buildApp({ RATE_LIMIT_WINDOW_MS: "60000", RATE_LIMIT_REWARDS_MAX: "5" });
+      const app = buildApp({ RATE_LIMIT_WINDOW_MS: "900000", RATE_LIMIT_REWARDS_MAX: "5" });
 
       const res = await request(app).get(`/user/${address}/rewards`);
 
@@ -84,7 +89,7 @@ describe("rate limiting", () => {
 
     it("returns 429 after exceeding the rewards limit", async () => {
       const app = buildApp({
-        RATE_LIMIT_WINDOW_MS: "60000",
+        RATE_LIMIT_WINDOW_MS: "900000",
         RATE_LIMIT_GLOBAL_MAX: "100",
         RATE_LIMIT_REWARDS_MAX: "3",
       });
@@ -102,7 +107,7 @@ describe("rate limiting", () => {
     it("rewards limit is stricter than global limit", async () => {
       // Global=100, rewards=3 — /campaigns still works after rewards is exhausted
       const app = buildApp({
-        RATE_LIMIT_WINDOW_MS: "60000",
+        RATE_LIMIT_WINDOW_MS: "900000",
         RATE_LIMIT_GLOBAL_MAX: "100",
         RATE_LIMIT_REWARDS_MAX: "3",
       });
@@ -116,6 +121,51 @@ describe("rate limiting", () => {
 
       expect(rewardsRes.status).toBe(429);
       expect(campaignsRes.status).toBe(200);
+    });
+  });
+
+  describe("write limiter", () => {
+    it("allows write requests under the limit", async () => {
+      const app = buildApp({ RATE_LIMIT_WINDOW_MS: "900000", RATE_LIMIT_GLOBAL_MAX: "100", RATE_LIMIT_WRITE_MAX: "5" });
+
+      const res = await request(app).post("/campaigns");
+
+      expect(res.status).toBe(201);
+    });
+
+    it("returns 429 after exceeding the write limit", async () => {
+      const app = buildApp({
+        RATE_LIMIT_WINDOW_MS: "900000",
+        RATE_LIMIT_GLOBAL_MAX: "100",
+        RATE_LIMIT_WRITE_MAX: "3",
+      });
+
+      for (let i = 0; i < 3; i++) {
+        await request(app).post("/campaigns");
+      }
+
+      const res = await request(app).post("/campaigns");
+
+      expect(res.status).toBe(429);
+      expect(res.headers["retry-after"]).toBeDefined();
+    });
+
+    it("write limit does not affect GET endpoints", async () => {
+      const app = buildApp({
+        RATE_LIMIT_WINDOW_MS: "900000",
+        RATE_LIMIT_GLOBAL_MAX: "100",
+        RATE_LIMIT_WRITE_MAX: "3",
+      });
+
+      for (let i = 0; i < 3; i++) {
+        await request(app).post("/campaigns");
+      }
+
+      const writeRes = await request(app).post("/campaigns");
+      const readRes = await request(app).get("/campaigns");
+
+      expect(writeRes.status).toBe(429);
+      expect(readRes.status).toBe(200);
     });
   });
 });

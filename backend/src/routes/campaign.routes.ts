@@ -14,6 +14,7 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams, validateQuery } from "../middleware/validation";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 import { parseStrictInteger } from "../utils/validation";
+import { writeLimiter } from "../middleware/rateLimiter";
 
 export const campaignRouter = Router();
 
@@ -264,7 +265,7 @@ campaignRouter.get("/:id", asyncHandler(async (req: Request, res: Response) => {
  *       500:
  *         description: Server error.
  */
-campaignRouter.patch("/reorder", validateBody(ReorderSchema), asyncHandler(async (req: Request, res: Response) => {
+campaignRouter.patch("/reorder", writeLimiter, validateBody(ReorderSchema), asyncHandler(async (req: Request, res: Response) => {
   const { order } = req.body;
   await reorderCampaigns(order);
   res.json({ ok: true });
@@ -274,7 +275,7 @@ campaignRouter.patch("/reorder", validateBody(ReorderSchema), asyncHandler(async
  * DELETE /campaigns/:id
  * Soft-deletes a campaign by setting deleted_at.
  */
-campaignRouter.delete("/:id", async (req: Request, res: Response) => {
+campaignRouter.delete("/:id", writeLimiter, async (req: Request, res: Response) => {
   const id = parseStrictInteger(String(req.params.id));
   if (id === null) return res.status(400).json({ error: "Invalid id" });
   try {
@@ -290,7 +291,7 @@ campaignRouter.delete("/:id", async (req: Request, res: Response) => {
  * POST /campaigns/:id/restore
  * Restores a soft-deleted campaign.
  */
-campaignRouter.post("/:id/restore", async (req: Request, res: Response) => {
+campaignRouter.post("/:id/restore", writeLimiter, async (req: Request, res: Response) => {
   const id = parseStrictInteger(String(req.params.id));
   if (id === null) return res.status(400).json({ error: "Invalid id" });
   try {
@@ -302,7 +303,7 @@ campaignRouter.post("/:id/restore", async (req: Request, res: Response) => {
   }
 });
 
-campaignRouter.post("/", sanitizeBody, async (req: Request, res: Response) => {
+campaignRouter.post("/", writeLimiter, sanitizeBody, async (req: Request, res: Response) => {
   const parsed = CreateCampaignSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   try {

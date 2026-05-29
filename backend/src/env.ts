@@ -94,11 +94,14 @@ const envSchema = z.object({
   ENABLE_INDEXER: booleanString(true),
 
   // ── Rate Limiting ────────────────────────────────────────────────────────────
-  /** Sliding window duration in milliseconds. Default: 60000 (1 min). */
-  RATE_LIMIT_WINDOW_MS: z.string().default("60000").transform(Number).pipe(z.number().int().min(1000)),
+  /** Sliding window duration in milliseconds. Default: 900000 (15 min). */
+  RATE_LIMIT_WINDOW_MS: z.string().default("900000").transform(Number).pipe(z.number().int().min(1000)),
 
-  /** Max requests per window per IP (global). Default: 100. */
+  /** Max requests per window per IP (GET endpoints). Default: 100. */
   RATE_LIMIT_GLOBAL_MAX: z.string().default("100").transform(Number).pipe(z.number().int().min(1)),
+
+  /** Max requests per window per IP for write endpoints. Default: 20. */
+  RATE_LIMIT_WRITE_MAX: z.string().default("20").transform(Number).pipe(z.number().int().min(1)),
 
   /** Max requests per window per IP for /user/:address/rewards. Default: 20. */
   RATE_LIMIT_REWARDS_MAX: z.string().default("20").transform(Number).pipe(z.number().int().min(1)),
