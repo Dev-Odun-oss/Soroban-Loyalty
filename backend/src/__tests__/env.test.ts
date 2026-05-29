@@ -248,6 +248,34 @@ describe("MAINTENANCE_MODE", () => {
   });
 });
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+
+describe("rate limit env vars", () => {
+  it("defaults RATE_LIMIT_WINDOW_MS to 900000", () => {
+    const result = parseEnv(valid({ RATE_LIMIT_WINDOW_MS: undefined }));
+    expect(result.RATE_LIMIT_WINDOW_MS).toBe(900000);
+  });
+
+  it("defaults RATE_LIMIT_GLOBAL_MAX to 100", () => {
+    const result = parseEnv(valid({ RATE_LIMIT_GLOBAL_MAX: undefined }));
+    expect(result.RATE_LIMIT_GLOBAL_MAX).toBe(100);
+  });
+
+  it("defaults RATE_LIMIT_WRITE_MAX to 20", () => {
+    const result = parseEnv(valid({ RATE_LIMIT_WRITE_MAX: undefined }));
+    expect(result.RATE_LIMIT_WRITE_MAX).toBe(20);
+  });
+
+  it("defaults RATE_LIMIT_REWARDS_MAX to 20", () => {
+    const result = parseEnv(valid({ RATE_LIMIT_REWARDS_MAX: undefined }));
+    expect(result.RATE_LIMIT_REWARDS_MAX).toBe(20);
+  });
+
+  it("rejects RATE_LIMIT_WINDOW_MS below 1000", () => {
+    expect(() => parseEnv(valid({ RATE_LIMIT_WINDOW_MS: "500" }))).toThrow(/RATE_LIMIT_WINDOW_MS/);
+  });
+});
+
 // ── Happy path — full valid env ───────────────────────────────────────────────
 
 describe("full valid environment", () => {
