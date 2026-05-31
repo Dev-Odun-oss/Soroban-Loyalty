@@ -3,6 +3,7 @@ import Link from "next/link";
 import { WalletProvider } from "@/context/WalletContext";
 import { I18nProvider } from "@/context/I18nContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { WalletConnector } from "@/components/WalletConnector";
 import { NetworkStatusIndicator } from "@/components/NetworkStatusIndicator";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -59,9 +60,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <I18nProvider>
           <ToastProvider>
-            <WalletProvider>
-              <LayoutContent>{children}</LayoutContent>
-            </WalletProvider>
+            <ThemeProvider>
+              <WalletProvider>
+                <LayoutContent>{children}</LayoutContent>
+              </WalletProvider>
+            </ThemeProvider>
           </ToastProvider>
         </I18nProvider>
       </body>

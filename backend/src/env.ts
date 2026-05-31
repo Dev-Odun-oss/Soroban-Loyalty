@@ -90,8 +90,15 @@ const envSchema = z.object({
   /** HTTP port the Express server listens on. Default: 3001. */
   PORT: portString(3001),
 
+  // ── Indexer ─────────────────────────────────────────────────────────────────
   /** Set to "false" to disable the on-chain event indexer. Default: true. */
   ENABLE_INDEXER: booleanString(true),
+
+  /**
+   * Ledger sequence number to start indexing from on a cold start (no saved checkpoint).
+   * Set to a recent ledger to skip historical replay. Default: 1 (full history).
+   */
+  START_LEDGER: z.string().default("1").transform(Number).pipe(z.number().int().min(1)),
 
   // ── Rate Limiting ────────────────────────────────────────────────────────────
   /** Sliding window duration in milliseconds. Default: 900000 (15 min). */

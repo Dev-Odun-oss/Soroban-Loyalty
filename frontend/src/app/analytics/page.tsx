@@ -7,6 +7,7 @@ import { ExperimentStatsPanel } from "@/components/ExperimentStatsPanel";
 
 import { StatCardsSkeleton, BarChartSkeleton, LineChartSkeleton } from "@/components/ChartSkeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 const BarChart = dynamic(() => import("recharts").then((m) => m.BarChart), { ssr: false });
 const Bar = dynamic(() => import("recharts").then((m) => m.Bar), { ssr: false });
 const LineChart = dynamic(() => import("recharts").then((m) => m.LineChart), { ssr: false });
@@ -29,7 +30,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadAnalytics = () => {
     setLoading(true);
     setError(null);
     api
@@ -37,6 +38,11 @@ export default function AnalyticsPage() {
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadAnalytics();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   return (
@@ -56,7 +62,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && <ErrorState message={error} onRetry={loadAnalytics} />}
 
       <div style={{ opacity: loading ? 1 : 0, transition: "opacity 0.2s", position: loading ? "static" : "absolute", pointerEvents: "none", display: loading ? "block" : "none" }}
            aria-hidden={!loading}>

@@ -5,7 +5,8 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams } from "../middleware/validation";
 import { BadRequestError } from "../utils/errors";
 import { isValidStellarAddress } from "../utils/validation";
-import { rewardsLimiter, writeLimiter } from "../middleware/rateLimiter";
+import { rewardsLimiter } from "../middleware/rateLimiter";
+import { StellarAddressParamSchema } from "./schemas";
 
 export const rewardRouter = Router();
 
@@ -48,11 +49,8 @@ const ClaimSchema = z.object({
  *       500:
  *         description: Server error.
  */
-rewardRouter.get("/user/:address/rewards", rewardsLimiter, asyncHandler(async (req: Request, res: Response) => {
+rewardRouter.get("/user/:address/rewards", rewardsLimiter, validateParams(StellarAddressParamSchema), asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
-  if (!isValidStellarAddress(address)) {
-    throw new BadRequestError("Invalid Stellar address", { address });
-  }
   try {
     const rewards = await getRewardsByUser(address);
     res.json({ rewards });
@@ -65,11 +63,8 @@ rewardRouter.get("/user/:address/rewards", rewardsLimiter, asyncHandler(async (r
  * POST /user/:address/rewards/claim
  * Inserts a reward claim once per (user, campaign). Duplicate claims return 409.
  */
-rewardRouter.post("/user/:address/rewards/claim", writeLimiter, asyncHandler(async (req: Request, res: Response) => {
+rewardRouter.post("/user/:address/rewards/claim", validateParams(StellarAddressParamSchema), asyncHandler(async (req: Request, res: Response) => {
   const address = String(req.params.address);
-  if (!isValidStellarAddress(address)) {
-    throw new BadRequestError("Invalid Stellar address", { address });
-  }
 
   const parsed = ClaimSchema.safeParse(req.body);
   if (!parsed.success) {

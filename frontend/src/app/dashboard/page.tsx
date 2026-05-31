@@ -10,6 +10,8 @@ import { RewardList } from "@/components/RewardList";
 import { NetworkBanner } from "@/components/NetworkBanner";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { useToast } from "@/context/ToastContext";
 import Link from "next/link";
 
 const PAGE_SIZE = 20;
@@ -19,8 +21,11 @@ export default function DashboardPage() {
   const { t } = useI18n();
   const { health } = useNetworkStatus();
   const { toast } = useToast();
+
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignError, setCampaignError] = useState<string | null>(null);
   const [rewards, setRewards] = useState<Reward[]>([]);
+  const [rewardError, setRewardError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<number | null>(null);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [optimisticClaimed, setOptimisticClaimed] = useState<Set<number>>(new Set());
@@ -29,57 +34,48 @@ export default function DashboardPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const loadCampaigns = useCallback(async (currentOffset: number, initial = false) => {
-    if (loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const r = await api.getCampaigns(PAGE_SIZE, currentOffset);
-      if (initial) {
-        setCampaigns(r.campaigns);
-      } else {
-        setCampaigns((prev) => [...prev, ...r.campaigns]);
-      }
-      setTotal(r.total);
-      setOffset(currentOffset + r.campaigns.length);
-    } catch (err) {
-      console.error("Failed to load campaigns", err);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [loadingMore]);
-
-  const networkDisabled = health.status === 'unreachable';
+  const networkDisabled = health.status === "unreachable";
 
   const loadCampaigns = useCallback(
     async (nextOffset: number, replace = false) => {
+      if (replace) setLoadingCampaigns(true);
       setLoadingMore(true);
+      setCampaignError(null);
       try {
         const response = await api.getCampaigns(PAGE_SIZE, nextOffset);
         setCampaigns((prev) => (replace ? response.campaigns : [...prev, ...response.campaigns]));
         setOffset(nextOffset + response.campaigns.length);
         setTotal(response.total);
-      } catch (error) {
-        console.error("Failed to load campaigns", error);
+      } catch (err) {
+        setCampaignError(err instanceof Error ? err.message : "Failed to load campaigns");
       } finally {
         setLoadingMore(false);
+        if (replace) setLoadingCampaigns(false);
       }
     },
     []
   );
 
-  useEffect(() => {
-    if (publicKey) {
-      api.getUserRewards(publicKey).then((r) => {
-        setRewards(r.rewards);
-        const claimedIds = r.rewards.filter(rw => !rw.redeemed).map(rw => rw.campaign_id);
-        setOptimisticClaimed(new Set(claimedIds));
-      }).catch(console.error);
+  const loadRewards = useCallback(async () => {
+    if (!publicKey) return;
+    setRewardError(null);
+    try {
+      const r = await api.getUserRewards(publicKey);
+      setRewards(r.rewards);
+      const claimedIds = r.rewards.filter((rw) => !rw.redeemed).map((rw) => rw.campaign_id);
+      setOptimisticClaimed(new Set(claimedIds));
+    } catch (err) {
+      setRewardError(err instanceof Error ? err.message : "Failed to load rewards");
     }
   }, [publicKey]);
 
   useEffect(() => {
     loadCampaigns(0, true);
   }, [loadCampaigns]);
+
+  useEffect(() => {
+    loadRewards();
+  }, [loadRewards]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -105,19 +101,16 @@ export default function DashboardPage() {
       toast("Network is unreachable. Please try again later.", "error");
       return;
     }
-    
     setClaimingId(campaignId);
     try {
       await claimReward(publicKey, campaignId);
-      setOptimisticClaimed(prev => new Set(prev).add(campaignId));
+      setOptimisticClaimed((prev) => new Set(prev).add(campaignId));
       toast("Reward claimed successfully!", "success");
-      
-      // Refresh rewards
       const r = await api.getUserRewards(publicKey);
       setRewards(r.rewards);
       await refreshBalance();
     } catch (err: unknown) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : t('messages.claimFailed') });
+      toast(err instanceof Error ? err.message : t("messages.claimFailed"), "error");
     } finally {
       setClaimingId(null);
     }
@@ -132,18 +125,15 @@ export default function DashboardPage() {
       toast("Network is unreachable. Please try again later.", "error");
       return;
     }
-    
     setRedeemingId(rewardId);
     try {
       await redeemReward(publicKey, BigInt(amount));
       toast("Reward redeemed successfully!", "success");
-      
-      // Refresh rewards
       const r = await api.getUserRewards(publicKey);
       setRewards(r.rewards);
       await refreshBalance();
     } catch (err: unknown) {
-      setMessage({ type: "error", text: err instanceof Error ? err.message : t('messages.redeemFailed') });
+      toast(err instanceof Error ? err.message : t("messages.redeemFailed"), "error");
     } finally {
       setRedeemingId(null);
     }
@@ -160,13 +150,17 @@ export default function DashboardPage() {
     );
   }
 
+  const hasMore = total !== null && offset < total;
+
   return (
     <div className="container">
       <NetworkBanner />
-      
-      <div style={{ marginBottom: "2rem" }}>
+
+      <section style={{ marginBottom: "2rem" }}>
         <h1 className="page-title">Active Campaigns</h1>
-        {campaigns.length === 0 ? (
+        {campaignError ? (
+          <ErrorState message={campaignError} onRetry={() => loadCampaigns(0, true)} />
+        ) : campaigns.length === 0 && !loadingMore ? (
           <EmptyState
             illustration="campaigns"
             title="No active campaigns"
@@ -188,31 +182,23 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {publicKey && (
-        <section style={{ marginTop: 40 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h2 className="section-title" style={{ marginBottom: 0 }}>{t('rewards.title')}</h2>
-            <Link href="/dashboard/history" className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '4px 12px' }}>
-              View History
-            </Link>
-          </div>
-          <RewardList
-            rewards={rewards}
-            onRedeem={networkDisabled ? undefined : handleRedeem}
-            redeeming={redeemingId}
-          />
-        </section>
-      )}
+      <section style={{ marginTop: 40 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <h2 className="section-title" style={{ marginBottom: 0 }}>{t("rewards.title")}</h2>
+          <Link href="/dashboard/history" className="btn btn-outline" style={{ fontSize: "0.8rem", padding: "4px 12px" }}>
+            View History
+          </Link>
+        </div>
+        <RewardList
+          rewards={rewards}
+          onRedeem={networkDisabled ? undefined : handleRedeem}
+          redeeming={redeemingId}
+          error={rewardError}
+          onRetry={loadRewards}
+        />
+      </section>
 
       {hasMore && <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />}
     </div>
-  );
-}
-
-export default function DashboardPage() {
-  return (
-    <SorobanErrorBoundary>
-      <DashboardPageContent />
-    </SorobanErrorBoundary>
   );
 }

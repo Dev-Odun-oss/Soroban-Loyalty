@@ -7,7 +7,8 @@ RUN npm ci
 # ── builder: Next.js standalone build ────────────────────────────────────────
 FROM node:20.19.1-alpine3.21 AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 RUN npm run build
 

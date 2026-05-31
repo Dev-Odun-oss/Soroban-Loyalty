@@ -2,110 +2,53 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/errors';
 import { logger } from '../logger';
 
-interface ErrorResponse {
-  code: string;
-  message: string;
-  details?: any;
-  timestamp: string;
-  path: string;
-}
-
 /**
- * Centralized error handling middleware
- * Normalizes all errors to consistent format
+ * Global error-handling middleware.
+ * Returns { error: string, code?: string }. Stack traces only in development.
  */
 export function errorHandler(
   err: Error | AppError,
   req: Request,
   res: Response,
-  next: NextFunction
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _next: NextFunction
 ) {
-  // Log error for debugging
+  // Always log the full error including stack
   logger.error(err.message, err instanceof Error ? err : undefined, {
-    name: err.name,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     path: req.path,
     method: req.method,
-    ip: req.ip,
   });
 
-  // Default error response
-  let errorResponse: ErrorResponse = {
-    code: 'INTERNAL_SERVER_ERROR',
-    message: 'Something went wrong',
-    timestamp: new Date().toISOString(),
-    path: req.path
-  };
-  let statusCode = 500;
+  const isDev = process.env.NODE_ENV === 'development';
 
-  // Handle known AppError instances
+  // Known application errors
   if (err instanceof AppError) {
-    errorResponse = {
-      code: err.code,
-      message: err.message,
-      details: err.details,
-      timestamp: new Date().toISOString(),
-      path: req.path
-    };
-    statusCode = err.statusCode;
-    return res.status(statusCode).json(errorResponse);
+    const body: Record<string, unknown> = { error: err.message, code: err.code };
+    if (err.details) body.errors = err.details.errors ?? err.details;
+    if (isDev) body.stack = err.stack;
+    return res.status(err.statusCode).json(body);
   }
 
-  // Handle Zod validation errors
+  // Zod validation errors
   if (err.name === 'ZodError') {
     const zodErr = err as any;
-    errorResponse = {
+    const body: Record<string, unknown> = {
+      error: 'Validation failed',
       code: 'VALIDATION_ERROR',
-      message: 'Validation failed',
-      details: zodErr.errors?.map((e: any) => ({
-        field: e.path.join('.'),
-        message: e.message
-      })) || zodErr.message,
-      timestamp: new Date().toISOString(),
-      path: req.path
+      errors: zodErr.errors?.map((e: any) => ({ field: e.path.join('.'), message: e.message })),
     };
-    return res.status(422).json(errorResponse);
+    if (isDev) body.stack = err.stack;
+    return res.status(400).json(body);
   }
 
-  // Handle PostgreSQL errors
-  if ((err as any).code && typeof (err as any).code === 'string') {
-    const pgErr = err as any;
-    switch (pgErr.code) {
-      case '23505': // unique violation
-        errorResponse = {
-          code: 'DUPLICATE_ERROR',
-          message: 'A record with this value already exists',
-          details: pgErr.detail,
-          timestamp: new Date().toISOString(),
-          path: req.path
-        };
-        return res.status(409).json(errorResponse);
-      case '23503': // foreign key violation
-        errorResponse = {
-          code: 'FOREIGN_KEY_ERROR',
-          message: 'Referenced record not found',
-          details: pgErr.detail,
-          timestamp: new Date().toISOString(),
-          path: req.path
-        };
-        return res.status(400).json(errorResponse);
-      case '42P01': // undefined table
-        errorResponse = {
-          code: 'DATABASE_ERROR',
-          message: 'Database configuration error',
-          timestamp: new Date().toISOString(),
-          path: req.path
-        };
-        return res.status(500).json(errorResponse);
-    }
-  }
-
-  res.status(statusCode).json(errorResponse);
+  // Unexpected errors — never expose internals in production
+  const body: Record<string, unknown> = { error: 'Internal server error' };
+  if (isDev) body.stack = err.stack;
+  res.status(500).json(body);
 }
 
 /**
- * Async wrapper to catch errors in route handlers
- * Use this to avoid try-catch blocks in controllers
+ * Async wrapper to forward errors to the error handler.
  */
 export function asyncHandler(fn: Function) {
   return (req: Request, res: Response, next: NextFunction) => {

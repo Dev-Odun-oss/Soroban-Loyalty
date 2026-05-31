@@ -65,7 +65,7 @@ export function Skeleton({
 export function CampaignListSkeleton() {
   return (
     <div className="grid" aria-hidden="true">
-      {[0, 1, 2].map((i) => (
+      {[0, 1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div className="card-header" style={{ display: "flex", justifyContent: "space-between" }}>
             <Skeleton width={80} height={20} borderRadius={4} />

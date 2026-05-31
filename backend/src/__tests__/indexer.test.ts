@@ -26,6 +26,7 @@ jest.mock("../env", () => ({
   env: {
     REWARDS_CONTRACT_ID:  "CREWARDS",
     CAMPAIGN_CONTRACT_ID: "CCAMPAIGN",
+    START_LEDGER: 1,
   },
 }));
 
@@ -36,6 +37,8 @@ import {
   getCursor,
   saveCursor,
   ensureIndexerTable,
+  getLastLedger,
+  saveCheckpoint,
 } from "../indexer/indexer";
 import { indexerDeadLetters, indexerPollErrors } from "../metrics";
 import { logger } from "../logger";
@@ -142,6 +145,64 @@ describe("ensureIndexerTable", () => {
     expect(mockPool.query).toHaveBeenCalledWith(
       expect.stringContaining("CREATE TABLE IF NOT EXISTS indexer_state")
     );
+  });
+});
+
+describe("getLastLedger", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("returns undefined when no last_ledger row exists", async () => {
+    (mockPool.query as jest.Mock).mockResolvedValueOnce({ rows: [] });
+    const ledger = await getLastLedger();
+    expect(ledger).toBeUndefined();
+  });
+
+  it("returns the stored ledger number as an integer", async () => {
+    (mockPool.query as jest.Mock).mockResolvedValueOnce({ rows: [{ value: "42" }] });
+    const ledger = await getLastLedger();
+    expect(ledger).toBe(42);
+  });
+});
+
+describe("saveCheckpoint", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("saves cursor and last_ledger in a single transaction", async () => {
+    // BEGIN, cursor INSERT, last_ledger INSERT, COMMIT
+    (mockPool.query as jest.Mock).mockResolvedValue({ rows: [] });
+    // pool.connect returns a mock client
+    const mockClient = {
+      query: jest.fn().mockResolvedValue({ rows: [] }),
+      release: jest.fn(),
+    };
+    (mockPool as any).connect = jest.fn().mockResolvedValue(mockClient);
+
+    await saveCheckpoint("token-100", 100);
+
+    const calls = mockClient.query.mock.calls.map(([sql]: [string]) => sql);
+    expect(calls[0]).toBe("BEGIN");
+    expect(calls[1]).toContain("INSERT INTO indexer_state");
+    expect(calls[1]).toContain("cursor");
+    expect(calls[2]).toContain("INSERT INTO indexer_state");
+    expect(calls[2]).toContain("last_ledger");
+    expect(calls[3]).toBe("COMMIT");
+    expect(mockClient.release).toHaveBeenCalled();
+  });
+
+  it("rolls back and rethrows on error", async () => {
+    const mockClient = {
+      query: jest.fn()
+        .mockResolvedValueOnce({}) // BEGIN
+        .mockRejectedValueOnce(new Error("db error")), // cursor INSERT fails
+      release: jest.fn(),
+    };
+    (mockPool as any).connect = jest.fn().mockResolvedValue(mockClient);
+
+    await expect(saveCheckpoint("bad-token", 99)).rejects.toThrow("db error");
+
+    const calls = mockClient.query.mock.calls.map(([sql]: [string]) => sql);
+    expect(calls).toContain("ROLLBACK");
+    expect(mockClient.release).toHaveBeenCalled();
   });
 });
 

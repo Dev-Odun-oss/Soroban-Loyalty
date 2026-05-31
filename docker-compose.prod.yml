@@ -7,6 +7,7 @@
 #   - restart: unless-stopped  — containers auto-recover from crashes (#404)
 #   - JSON logging driver       — structured logs forwarded to Loki (#398)
 #   - memory / CPU limits       — prevent runaway containers (#396)
+#   - nginx reverse proxy       — SSL termination, request routing, caching (#386)
 #
 # Log aggregation credentials (required when using Loki driver):
 #   LOKI_URL  — e.g. http://loki:3100/loki/api/v1/push
@@ -31,6 +32,40 @@ x-logging: &default-logging
     #   max-file: "5"
 
 services:
+  nginx:
+    # Nginx reverse proxy for SSL termination and request routing
+    # Rationale: Sits in front of backend and frontend, handles SSL/TLS,
+    # gzip compression, rate limiting, and static asset caching.
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128m
+        reservations:
+          cpus: "0.05"
+          memory: 32m
+    volumes:
+      # Mount SSL certificates (configure in production)
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   postgres:
     # Rationale: PostgreSQL is the most memory-intensive service; 1 GB cap
     # prevents it from consuming all host RAM while still allowing a healthy

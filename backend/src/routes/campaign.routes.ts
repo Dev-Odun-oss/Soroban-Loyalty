@@ -3,9 +3,11 @@ import { z } from "zod";
 import {
   getCampaigns,
   getCampaignById,
+  upsertCampaign,
   reorderCampaigns,
   softDeleteCampaign,
   restoreCampaign,
+  upsertCampaign,
   CampaignFilters,
 } from "../services/campaign.service";
 import { redisClient } from "../lib/redis";
@@ -13,10 +15,23 @@ import { logger } from "../logger";
 import { asyncHandler } from "../middleware/errorHandler";
 import { validateBody, validateParams, validateQuery } from "../middleware/validation";
 import { BadRequestError, NotFoundError } from "../utils/errors";
-import { parseStrictInteger } from "../utils/validation";
-import { writeLimiter } from "../middleware/rateLimiter";
+import { parseStrictInteger, isValidStellarAddress } from "../utils/validation";
+import { requireAuth, AuthRequest } from "../auth";
+import { sanitizeBody } from "../middleware/sanitize";
 
 export const campaignRouter = Router();
+
+// Campaign creation validation schema (#282)
+const CreateCampaignSchema = z.object({
+  name: z.string().min(1, "name is required").max(100, "name must be ≤ 100 characters"),
+  reward_amount: z.number().int().positive("reward_amount must be a positive integer"),
+  expires_at: z
+    .string()
+    .datetime({ message: "expires_at must be a valid ISO 8601 timestamp" })
+    .refine((val) => new Date(val) > new Date(), { message: "expires_at must be a future date" }),
+  merchant: z.string().optional(),
+  description: z.string().optional(),
+});
 
 // Route-specific validation schemas
 const CampaignQuerySchema = z.object({
@@ -33,7 +48,11 @@ const CampaignQuerySchema = z.object({
     if (!val) return undefined;
     const num = parseInt(val, 10);
     return isNaN(num) ? undefined : num;
-  })
+  }),
+  owner: z.string().optional().refine(
+    val => val === undefined || isValidStellarAddress(val),
+    { message: "owner must be a valid Stellar address (56-character G... key)" }
+  ),
 });
 
 const ReorderSchema = z.object({
@@ -153,6 +172,9 @@ campaignRouter.get("/", asyncHandler(async (req: Request, res: Response) => {
   if (req.query.expires_after) {
     const v = parseInt(String(req.query.expires_after), 10);
     if (!isNaN(v)) filters.expires_after = v;
+  }
+  if (req.query.owner) {
+    filters.owner = String(req.query.owner);
   }
 
   const cacheKey = `campaigns:list:${limit}:${offset}:search=${filters.search ?? ""}:status=${filters.status ?? ""}:expires_before=${filters.expires_before ?? ""}:expires_after=${filters.expires_after ?? ""}`;
@@ -303,14 +325,28 @@ campaignRouter.post("/:id/restore", writeLimiter, async (req: Request, res: Resp
   }
 });
 
-campaignRouter.post("/", writeLimiter, sanitizeBody, async (req: Request, res: Response) => {
-  const parsed = CreateCampaignSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  try {
-    const { name: _name, description: _desc, ...rest } = parsed.data;
-    await upsertCampaign({ ...rest, id: Date.now(), active: true, total_claimed: 0 });
-    res.status(201).json({ ok: true });
-  } catch {
-    res.status(500).json({ error: "Failed to create campaign" });
-  }
+const CreateCampaignSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  reward_amount: z.number().int().positive(),
+  expiration: z.number().int().positive(),
+  merchant: z.string().length(56),
+  tx_hash: z.string().max(64).optional(),
 });
+
+/**
+ * POST /campaigns
+ * Creates a new campaign. Requires authentication.
+ * The authenticated caller's address is stored as owner_address.
+ */
+campaignRouter.post("/", requireAuth, sanitizeBody, validateBody(CreateCampaignSchema), asyncHandler(async (req: Request, res: Response) => {
+  const ownerAddress = (req as AuthRequest).merchantPublicKey;
+  const { name: _name, ...rest } = req.body;
+  await upsertCampaign({
+    ...rest,
+    id: Date.now(),
+    active: true,
+    total_claimed: 0,
+    owner_address: ownerAddress,
+  });
+  res.status(201).json({ ok: true });
+}));

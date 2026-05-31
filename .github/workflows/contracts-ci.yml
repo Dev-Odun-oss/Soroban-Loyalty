@@ -6,25 +6,32 @@ on:
       - "contracts/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "rust-toolchain.toml"
   pull_request:
     paths:
       - "contracts/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "rust-toolchain.toml"
 
 env:
   WASM_SIZE_LIMIT_KB: 64
 
 jobs:
-  build-and-check-size:
+  build-test-lint:
+    name: Build, Test & Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Rust wasm32 target
-        run: rustup target add wasm32-unknown-unknown
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.85.0"
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
 
-      - name: Cache cargo registry
+      - name: Cache Cargo registry and build
         uses: actions/cache@v5
         with:
           path: |
@@ -32,9 +39,16 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Build contracts
-        run: cargo build --release --target wasm32-unknown-unknown
+      - name: Run cargo test
+        run: cargo test --workspace
+
+      - name: Run cargo clippy with --deny warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build contracts (wasm32)
+        run: cargo build --target wasm32-unknown-unknown --release --workspace
 
       - name: Check WASM sizes
         run: |

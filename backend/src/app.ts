@@ -15,8 +15,9 @@ import {
   dbPoolIdle,
   dbPoolWaiting,
 } from "./metrics";
-import { errorAlertMiddleware, requestLogger } from "./logger";
+import { requestLogger } from "./logger";
 import { globalLimiter, rewardsLimiter } from "./middleware/rateLimiter";
+import { errorHandler } from "./middleware/errorHandler";
 
 export function createApp() {
   const app = express();
@@ -117,7 +118,7 @@ export function createApp() {
   // Merchant mutation routes require JWT
   app.use("/merchant/campaigns", requireAuth, campaignRouter);
 
-  app.use(errorAlertMiddleware);
+  app.use(errorHandler);
 
   return app;
 }

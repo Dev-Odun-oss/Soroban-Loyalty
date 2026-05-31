@@ -40,6 +40,7 @@
 import { Reward } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 
 /**
  * Props for RewardList component
@@ -48,15 +49,23 @@ import { EmptyState } from "@/components/EmptyState";
  * @property {Reward[]} rewards - Array of reward objects to display
  * @property {(reward: Reward) => void} [onRedeem] - Callback when user clicks redeem button
  * @property {string | null} [redeeming] - ID of reward currently being redeemed (disables button)
+ * @property {string | null} [error] - Error message to display instead of the list
+ * @property {() => void} [onRetry] - Callback to retry the failed fetch
  */
 interface Props {
   rewards: Reward[];
   onRedeem?: (reward: Reward) => void;
   redeeming?: string | null;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export function RewardList({ rewards, onRedeem, redeeming }: Props) {
+export function RewardList({ rewards, onRedeem, redeeming, error, onRetry }: Props) {
   const { t } = useI18n();
+
+  if (error) {
+    return <ErrorState message={error} onRetry={onRetry ?? (() => {})} />;
+  }
 
   if (rewards.length === 0) {
     return (

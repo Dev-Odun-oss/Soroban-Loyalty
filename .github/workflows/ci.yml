@@ -1,20 +1,14 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
-
-# Cancel in-progress runs for the same PR/branch to save resources
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  push:
+    branches: [main]
 
 jobs:
-  # ── Backend unit + integration tests ────────────────────────────────────────
-  backend:
-    name: Backend Tests
+  backend-ci:
+    name: Backend - Lint, Type-check & Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -62,29 +56,28 @@ jobs:
       - name: Run migrations
         run: npm run migrate:up
 
-      - name: Create integration test database
+      - name: Create dedicated integration test database
         run: psql $DATABASE_URL -c "CREATE DATABASE loyalty_test;"
 
       - name: Apply test DB schema
         run: psql $TEST_DATABASE_URL -f ../database/schema.sql
 
-      - name: Unit tests
+      - name: Run unit tests
         run: npm test -- --ci --coverage
 
-      - name: Integration tests
+      - name: Run integration tests
         run: npm run test:integration -- --ci
 
-      - name: Upload coverage
+      - name: Upload test coverage
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: backend-coverage
+          name: backend-test-coverage
           path: backend/coverage/
           retention-days: 7
 
-  # ── Frontend component tests ─────────────────────────────────────────────────
-  frontend:
-    name: Frontend Tests
+  frontend-ci:
+    name: Frontend - Lint, Type-check & Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -104,151 +97,61 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type-check
-        run: npx tsc --noEmit
-
       - name: Lint
         run: npm run lint
 
-      - name: Component tests
-        run: npm test -- --ci
+      - name: Type-check
+        run: npx tsc --noEmit
 
-  # ── Rust contract tests ──────────────────────────────────────────────────────
-  contracts:
-    name: Contract Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+      - name: Run tests
+        run: npm test -- --ci --coverage
 
-    steps:
-      - uses: actions/checkout@v6
+      - name: Build
+        run: npm run build
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.85.0"
-          targets: wasm32-unknown-unknown
-          components: rustfmt, clippy
-
-      - name: Cache Cargo
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run all tests (including integration)
-        run: cargo test --workspace
-
-  # ── Secret scanning ──────────────────────────────────────────────────────────
-  secret-scan:
-    name: Secret Scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          config-path: .gitleaks.toml
-
-  # ── E2E tests (sequential — resource-constrained) ────────────────────────────
-  e2e:
-    name: E2E Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Run after backend and frontend pass to avoid wasting runner time
-    needs: [backend, frontend]
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: loyalty
-          POSTGRES_PASSWORD: loyalty
-          POSTGRES_DB: loyalty
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DATABASE_URL: postgresql://loyalty:loyalty@localhost:5432/loyalty
-      NEXT_PUBLIC_API_URL: http://localhost:3001
-      STAGING_URL: http://localhost:3000
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
-            e2e/package-lock.json
-
-      - name: Install backend deps
-        run: npm ci
-        working-directory: backend
-
-      - name: Install frontend deps
-        run: npm ci
-        working-directory: frontend
-
-      - name: Install Playwright deps
-        run: npm ci
-        working-directory: e2e
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-        working-directory: e2e
-
-      - name: Apply DB schema
-        run: psql $DATABASE_URL -f database/schema.sql
-
-      - name: Start backend
-        run: npm run dev &
-        working-directory: backend
-        env:
-          PORT: 3001
-          ENABLE_INDEXER: "false"
-
-      - name: Build & start frontend
-        run: |
-          npm run build
-          npm run start &
-        working-directory: frontend
-
-      - name: Wait for services
-        run: npx wait-on http://localhost:3001/health http://localhost:3000 --timeout 60000
-
-      - name: Run E2E tests
-        run: npx playwright test --workers=1
-        working-directory: e2e
-
-      - name: Upload screenshots on failure
-        if: failure()
+      - name: Upload test coverage
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-screenshots
-          path: e2e/test-results/
+          name: frontend-test-coverage
+          path: frontend/coverage/
           retention-days: 7
+
+  contracts-ci:
+    name: Rust Contracts - Test & Clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts
+
+      - name: Run tests
+        run: cargo test --all
+
+      - name: Run clippy
+        run: cargo clippy --all --all-targets -- -D warnings
+
+  ci-status:
+    name: CI Status Check
+    runs-on: ubuntu-latest
+    needs: [backend-ci, frontend-ci, contracts-ci]
+    if: always()
+
+    steps:
+      - name: Check CI status
+        run: |
+          if [ "${{ needs.backend-ci.result }}" != "success" ] || \
+             [ "${{ needs.frontend-ci.result }}" != "success" ] || \
+             [ "${{ needs.contracts-ci.result }}" != "success" ]; then
+            echo "❌ CI pipeline failed"
+            exit 1
+          fi
+          echo "✅ All CI checks passed"

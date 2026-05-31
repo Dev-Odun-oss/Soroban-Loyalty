@@ -38,6 +38,10 @@ const BACKOFF_MULTIPLIER = 2;
 const JITTER_FACTOR      = 0.2;     // ±20% random jitter
 const MAX_EVENT_RETRIES  = 3;       // per-event retries before dead-letter
 
+// Ledger to start from on a cold start (no saved checkpoint).
+// Configurable via START_LEDGER env var so operators can skip historical replay.
+const START_LEDGER = env.START_LEDGER ?? 1;
+
 // ── Backoff state (module-level so tests can inspect/reset) ───────────────────
 
 export let currentBackoffMs = 0;    // 0 = no active backoff
@@ -59,6 +63,18 @@ export async function getCursor(): Promise<string | undefined> {
 }
 
 /**
+ * Reads the last processed ledger sequence number from `indexer_state`.
+ *
+ * @returns The last saved ledger number, or `undefined` on a cold start.
+ */
+export async function getLastLedger(): Promise<number | undefined> {
+  const { rows } = await pool.query<{ value: string }>(
+    `SELECT value FROM indexer_state WHERE key = 'last_ledger' LIMIT 1`
+  );
+  return rows[0] ? parseInt(rows[0].value, 10) : undefined;
+}
+
+/**
  * Persists the Soroban RPC paging token so the next poll continues after this event.
  *
  * @param cursor - Paging token from the last event in a successfully polled batch.
@@ -71,6 +87,39 @@ export async function saveCursor(cursor: string): Promise<void> {
      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
     [cursor]
   );
+}
+
+/**
+ * Atomically persists the paging cursor and last processed ledger in a single transaction.
+ * This ensures the checkpoint is always consistent: a crash mid-batch will not leave
+ * the cursor advanced past the last committed ledger.
+ *
+ * @param cursor - Paging token from the last event in the batch.
+ * @param ledger - Ledger sequence number of the last processed event.
+ * @returns Resolves when both rows are committed.
+ * @throws Re-throws any database error after rolling back.
+ */
+export async function saveCheckpoint(cursor: string, ledger: number): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO indexer_state (key, value) VALUES ('cursor', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [cursor]
+    );
+    await client.query(
+      `INSERT INTO indexer_state (key, value) VALUES ('last_ledger', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [String(ledger)]
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 /** Persist a failed event to the dead_letter_events table for later inspection. */
@@ -290,14 +339,15 @@ async function poll(): Promise<void> {
     ];
 
     // Ledger cursor strategy:
-    // - Cold start (no saved paging token): set startLedger to 1 so the RPC scans from
-    //   the beginning of chain history for the filtered contracts.
+    // - Cold start (no saved paging token): set startLedger to START_LEDGER env var
+    //   (defaults to 1 for full history; set to a recent ledger to skip replay).
     // - Warm start: pass the persisted paging token as `cursor` so each poll fetches only
     //   events after the last committed position—no gaps and no full-chain replay.
-    // - After a non-empty batch: save the final event's pagingToken; a crash mid-batch may
-    //   re-deliver some events, which is safe because service upserts are idempotent.
+    // - After a non-empty batch: atomically save the final event's pagingToken and ledger
+    //   in one transaction; a crash mid-batch may re-deliver some events, which is safe
+    //   because service upserts are idempotent.
     const result = await rpcServer.getEvents({
-      startLedger: cursor ? undefined : 1,
+      startLedger: cursor ? undefined : START_LEDGER,
       cursor,
       filters,
       limit: 100,
@@ -309,11 +359,11 @@ async function poll(): Promise<void> {
       indexerEventsTotal.inc();
     }
 
-    // Persist cursor after the batch so a crash mid-batch re-processes
-    // (idempotent upserts in the service layer handle duplicates safely)
+    // Atomically persist cursor and last ledger after the batch so a crash mid-batch
+    // re-processes (idempotent upserts in the service layer handle duplicates safely).
     if (result.events.length > 0) {
       const last = result.events[result.events.length - 1] as unknown as SorobanRpc.Api.RawEventResponse;
-      await saveCursor(last.pagingToken);
+      await saveCheckpoint(last.pagingToken, Number(last.ledger));
     }
 
     // Update lag metric

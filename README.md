@@ -246,6 +246,19 @@ See [SECURITY.md](./SECURITY.md) for the vulnerability reporting process and res
 
 ---
 
+## Contributing
+
+We welcome contributions from developers of all skill levels! 
+
+**New to the project?** Check out our [Onboarding Guide](docs/onboarding.md) for a step-by-step walkthrough.
+
+**Ready to contribute?** See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- How to find issues to work on
+- Development setup and workflow
+- Code style guidelines
+- Pull request process
+
+Looking for a good first issue? Check out issues labeled [`good first issue`](https://github.com/your-org/soroban-loyalty/labels/good%20first%20issue).
 ## Code of Conduct
 
 This project follows the [Code of Conduct](./CODE_OF_CONDUCT.md).  

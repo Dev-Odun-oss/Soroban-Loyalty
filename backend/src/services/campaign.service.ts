@@ -4,6 +4,7 @@ import { writeAuditLog } from "./audit.service";
 export interface Campaign {
   id: number;
   merchant: string;
+  owner_address: string;
   name?: string | null;
   reward_amount: number;
   expiration: number;
@@ -29,14 +30,14 @@ export async function upsertCampaign(c: Omit<Campaign, "created_at" | "display_o
   try {
     await client.query("BEGIN");
     await client.query(
-      `INSERT INTO campaigns (id, merchant, reward_amount, expiration, active, total_claimed, tx_hash, image_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7, $8)
+      `INSERT INTO campaigns (id, merchant, owner_address, reward_amount, expiration, active, total_claimed, tx_hash, image_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        ON CONFLICT (id) DO UPDATE SET
          active = EXCLUDED.active,
          total_claimed = EXCLUDED.total_claimed,
          image_url = COALESCE(EXCLUDED.image_url, campaigns.image_url),
          updated_at = NOW()`,
-      [c.id, c.merchant, c.reward_amount, c.expiration, c.active, c.total_claimed, c.tx_hash ?? null, (c as any).image_url ?? null]
+      [c.id, c.merchant, c.owner_address ?? c.merchant, c.reward_amount, c.expiration, c.active, c.total_claimed, c.tx_hash ?? null, (c as any).image_url ?? null]
     );
     await writeAuditLog({
       actor: c.merchant,
@@ -90,6 +91,7 @@ export interface CampaignFilters {
   status?: "active" | "inactive";
   expires_before?: number;
   expires_after?: number;
+  owner?: string;
 }
 
 /**
@@ -125,6 +127,10 @@ export async function getCampaigns(
   if (filters.expires_after !== undefined) {
     params.push(filters.expires_after);
     conditions.push(`expiration >= $${params.length}`);
+  }
+  if (filters.owner !== undefined) {
+    params.push(filters.owner);
+    conditions.push(`owner_address = $${params.length}`);
   }
 
   const where = conditions.join(" AND ");
