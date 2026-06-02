@@ -1,21 +1,8 @@
 import { pool } from "../db";
 import { PoolClient } from "pg";
+import type { AuditAction, AuditLogEntry, AuditLogFilters } from "../types";
 
-export type AuditAction =
-  | "campaign.create"
-  | "campaign.deactivate"
-  | "reward.claim"
-  | "reward.redeem";
-
-export interface AuditLogEntry {
-  id: string;
-  actor: string;
-  action: AuditAction;
-  entity_type: string;
-  entity_id: string;
-  metadata: Record<string, unknown>;
-  created_at: Date;
-}
+export type { AuditAction, AuditLogEntry, AuditLogFilters };
 
 /**
  * Writes an audit log entry for a privileged or on-chain-derived action.
@@ -36,17 +23,6 @@ export async function writeAuditLog(
      VALUES ($1, $2, $3, $4, $5)`,
     [entry.actor, entry.action, entry.entity_type, entry.entity_id, JSON.stringify(entry.metadata)]
   );
-}
-
-export interface AuditLogFilters {
-  actor?: string;
-  action?: AuditAction;
-  entity_type?: string;
-  entity_id?: string;
-  since?: Date;
-  until?: Date;
-  limit?: number;
-  offset?: number;
 }
 
 /**
