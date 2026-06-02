@@ -65,8 +65,9 @@ export default function MerchantPage() {
         <h2 className="section-title">Create Campaign</h2>
         <form onSubmit={handleCreate}>
           <div className="form-group">
-            <label>Reward Amount (LYT)</label>
+            <label htmlFor="reward-amount">Reward Amount (LYT)</label>
             <input
+              id="reward-amount"
               type="number"
               min="1"
               value={rewardAmount}
@@ -76,8 +77,9 @@ export default function MerchantPage() {
             />
           </div>
           <div className="form-group">
-            <label>Duration (days)</label>
+            <label htmlFor="expiration-days">Duration (days)</label>
             <input
+              id="expiration-days"
               type="number"
               min="1"
               value={expirationDays}

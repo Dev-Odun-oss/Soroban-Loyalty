@@ -33,6 +33,7 @@ export function RewardList({ rewards, onRedeem, redeeming }: Props) {
               onClick={() => onRedeem(r)}
               disabled={redeeming === r.id}
               className="btn btn-secondary"
+              aria-label={`${redeeming === r.id ? t('rewards.actions.redeeming') : t('rewards.actions.redeem')} ${r.amount.toLocaleString()} LYT from campaign #${r.campaign_id}`}
             >
               {redeeming === r.id ? t('rewards.actions.redeeming') : t('rewards.actions.redeem')}
             </button>

@@ -92,16 +92,18 @@ export default function TransactionsPage() {
       <div className="no-print" style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
           <div className="form-group" style={{ marginBottom: 0, flex: '1', minWidth: '200px' }}>
-            <label>Start Date</label>
+            <label htmlFor="start-date">Start Date</label>
             <input
+              id="start-date"
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
           </div>
           <div className="form-group" style={{ marginBottom: 0, flex: '1', minWidth: '200px' }}>
-            <label>End Date</label>
+            <label htmlFor="end-date">End Date</label>
             <input
+              id="end-date"
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}

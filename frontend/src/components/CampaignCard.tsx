@@ -63,6 +63,7 @@ export function CampaignCard({ campaign, onClaim, claiming }: Props) {
             onClick={() => onClaim(campaign.id)}
             disabled={!canClaim || claiming}
             className="btn btn-primary"
+            aria-label={`${claiming ? t('campaigns.actions.claiming') : t('campaigns.actions.claim')} reward for campaign #${campaign.id}`}
           >
             {claiming ? t('campaigns.actions.claiming') : t('campaigns.actions.claim')}
           </button>
