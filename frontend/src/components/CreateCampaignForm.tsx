@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createCampaign } from "@/lib/soroban";
+import { Input } from "@/components/Input";
 
 interface Props {
   publicKey: string;
@@ -139,45 +140,36 @@ export function CreateCampaignForm({ publicKey, onSuccess }: Props) {
     <form onSubmit={handleReview} style={{ maxWidth: 480 }} noValidate>
       {txError && <div className="alert alert-error">{txError}</div>}
 
-      <div className="form-group">
-        <label htmlFor="ccf-name">Campaign Name</label>
-        <input
-          id="ccf-name"
-          type="text"
-          value={fields.name}
-          onChange={set("name")}
-          placeholder="e.g. Summer Rewards"
-          aria-describedby={errors.name ? "ccf-name-err" : undefined}
-        />
-        {errors.name && <span id="ccf-name-err" style={{ fontSize: "0.8rem", color: "#f87171" }}>{errors.name}</span>}
-      </div>
+      <Input
+        id="ccf-name"
+        label="Campaign Name"
+        type="text"
+        value={fields.name}
+        onChange={set("name")}
+        placeholder="e.g. Summer Rewards"
+        error={errors.name}
+      />
 
-      <div className="form-group">
-        <label htmlFor="ccf-amount">Reward Amount (LYT)</label>
-        <input
-          id="ccf-amount"
-          type="number"
-          min="1"
-          value={fields.rewardAmount}
-          onChange={set("rewardAmount")}
-          placeholder="e.g. 100"
-          aria-describedby={errors.rewardAmount ? "ccf-amount-err" : undefined}
-        />
-        {errors.rewardAmount && <span id="ccf-amount-err" style={{ fontSize: "0.8rem", color: "#f87171" }}>{errors.rewardAmount}</span>}
-      </div>
+      <Input
+        id="ccf-amount"
+        label="Reward Amount (LYT)"
+        type="number"
+        min="1"
+        value={fields.rewardAmount}
+        onChange={set("rewardAmount")}
+        placeholder="e.g. 100"
+        error={errors.rewardAmount}
+      />
 
-      <div className="form-group">
-        <label htmlFor="ccf-expires">Expiration Date</label>
-        <input
-          id="ccf-expires"
-          type="date"
-          min={today()}
-          value={fields.expiresAt}
-          onChange={set("expiresAt")}
-          aria-describedby={errors.expiresAt ? "ccf-expires-err" : undefined}
-        />
-        {errors.expiresAt && <span id="ccf-expires-err" style={{ fontSize: "0.8rem", color: "#f87171" }}>{errors.expiresAt}</span>}
-      </div>
+      <Input
+        id="ccf-expires"
+        label="Expiration Date"
+        type="date"
+        min={today()}
+        value={fields.expiresAt}
+        onChange={set("expiresAt")}
+        error={errors.expiresAt}
+      />
 
       <button type="submit" className="btn btn-primary">
         Review Campaign
