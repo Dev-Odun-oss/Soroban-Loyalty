@@ -6,7 +6,8 @@ See our [Glossary](docs/glossary.md) for definitions of domain-specific terms an
 
 ---
 
-##Screenshot
+## Screenshot
+
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3f6a7f4f-e559-49a7-b5fa-88942d3a93e2" />
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/a668bb79-bd31-47fc-96a2-2c12989ff050" />
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/03958210-a869-4455-8097-5bf231ec5335" />
