@@ -1,18 +1,8 @@
 import { pool } from "../db";
 import { logger } from "../logger";
+import type { Reward } from "../types";
 
-export interface Reward {
-  id: string;
-  user_address: string;
-  campaign_id: number;
-  amount: number;
-  redeemed: boolean;
-  redeemed_amount: number;
-  claimed_at: Date;
-  redeemed_at?: Date;
-  tx_hash?: string | null;
-  campaign_reward?: number;
-}
+export type { Reward };
 
 interface ExplainRow {
   "QUERY PLAN": string;

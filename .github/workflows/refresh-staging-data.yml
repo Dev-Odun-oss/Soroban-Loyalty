@@ -11,7 +11,7 @@ jobs:
     environment: staging
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Clone Production Data to Staging
         run: |
