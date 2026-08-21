@@ -1,21 +1,8 @@
 import { pool } from "../db";
 import { writeAuditLog } from "./audit.service";
+import type { Campaign, CampaignFilters } from "../types";
 
-export interface Campaign {
-  id: number;
-  merchant: string;
-  owner_address: string;
-  name?: string | null;
-  reward_amount: number;
-  expiration: number;
-  active: boolean;
-  total_claimed: number;
-  display_order: number;
-  tx_hash?: string;
-  image_url?: string;
-  created_at: Date;
-  deleted_at?: Date | null;
-}
+export type { Campaign, CampaignFilters };
 
 /**
  * Inserts or updates a campaign row and writes an audit log entry in one transaction.
@@ -84,14 +71,6 @@ export async function getCampaignImageByTxHash(txHash: string): Promise<string |
     [txHash]
   );
   return rows[0]?.image_url ?? null;
-}
-
-export interface CampaignFilters {
-  search?: string;
-  status?: "active" | "inactive";
-  expires_before?: number;
-  expires_after?: number;
-  owner?: string;
 }
 
 /**

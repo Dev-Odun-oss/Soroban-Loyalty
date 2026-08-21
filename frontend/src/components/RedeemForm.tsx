@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSorobanTransaction } from "@/hooks/useSorobanTransaction";
 import { SorobanErrorBoundary } from "./SorobanErrorBoundary";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Input } from "@/components/Input";
 
 interface Props {
   balance: number;
@@ -56,23 +57,20 @@ function RedeemFormContent({ balance, onRedeem }: Props) {
           </div>
         )}
 
-        <div className="form-group">
-          <label>Amount to Redeem (LYT)</label>
-          <input
-            type="number"
-            min="1"
-            max={balance}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder={`Max ${balance.toLocaleString()}`}
-            disabled={loading}
-          />
-          {amount && !isValid && (
-            <span style={{ fontSize: "0.8rem", color: "#f87171" }}>
-              {parsed > balance ? "Exceeds balance" : "Enter a valid amount"}
-            </span>
-          )}
-        </div>
+        <Input
+          id="redeem-amount"
+          label="Amount to Redeem (LYT)"
+          type="number"
+          min="1"
+          max={balance}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder={`Max ${balance.toLocaleString()}`}
+          disabled={loading}
+          error={amount && !isValid
+            ? (parsed > balance ? "Exceeds balance" : "Enter a valid amount")
+            : undefined}
+        />
 
         <button
           className="btn btn-primary"
