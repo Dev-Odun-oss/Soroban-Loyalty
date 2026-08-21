@@ -1,10 +1,19 @@
-# SorobanLoyalty
+# Soroban loyalty
 
 A modular, production-grade on-chain loyalty platform built on the **Stellar** network using **Soroban** smart contracts. Businesses create reward campaigns, users earn tokenized incentives (LYT), and everything is stored transparently on-chain.
 
 See our [Glossary](docs/glossary.md) for definitions of domain-specific terms and our [Changelog](CHANGELOG.md) for recent updates.
 
 ---
+
+## Screenshot
+
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3f6a7f4f-e559-49a7-b5fa-88942d3a93e2" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/a668bb79-bd31-47fc-96a2-2c12989ff050" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/03958210-a869-4455-8097-5bf231ec5335" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/3619774a-0088-4217-913a-f069c8c0bd31" />
+view on https://wave-lyt-vault.lovable.app
+
 
 ## Architecture
 
@@ -159,18 +168,41 @@ Test coverage:
 
 ## API Reference
 
+### TypeScript Types
+
+Shared types are documented in the central type definition files:
+
+| File | Types |
+|---|---|
+| `backend/src/types/index.ts` | `Campaign`, `CampaignFilters`, `Reward`, `TransactionRecord`, `AnalyticsData`, `CampaignAnalyticsData`, `AuditLogEntry`, `AuditAction`, `AuditLogFilters` |
+| `frontend/src/types/index.ts` | `Campaign`, `Reward`, `TransactionRecord`, `AnalyticsData` |
+
+Backend services re-export their types from `backend/src/types/index.ts`. Frontend components import types from `@/types` (or via the `@/lib/api` re-export for backwards compatibility).
+
 ### Campaigns
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/campaigns` | List all campaigns |
-| `GET` | `/campaigns/:id` | Get campaign by ID |
+| Method | Path | Description | Response type |
+|---|---|---|---|
+| `GET` | `/campaigns` | List all campaigns | `{ campaigns: Campaign[]; total: number }` |
+| `GET` | `/campaigns/:id` | Get campaign by ID | `{ campaign: Campaign }` |
 
 ### Rewards
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/user/:address/rewards` | Get all rewards for a user |
+| Method | Path | Description | Response type |
+|---|---|---|---|
+| `GET` | `/user/:address/rewards` | Get all rewards for a user | `{ data: Reward[]; total: number; limit: number; offset: number }` |
+
+### Transactions
+
+| Method | Path | Description | Response type |
+|---|---|---|---|
+| `GET` | `/user/:address/transactions` | Get indexed transactions for a user | `{ transactions: TransactionRecord[]; total: number }` |
+
+### Analytics
+
+| Method | Path | Description | Response type |
+|---|---|---|---|
+| `GET` | `/analytics?days=N` | Aggregated reward metrics | `AnalyticsData` |
 
 ### Health
 

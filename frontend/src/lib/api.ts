@@ -12,45 +12,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export interface Campaign {
-  id: number;
-  merchant: string;
-  name?: string | null;
-  reward_amount: number;
-  expiration: number;
-  active: boolean;
-  total_claimed: number;
-  image_url?: string;
-}
-
-export interface Reward {
-  id: string;
-  user_address: string;
-  campaign_id: number;
-  amount: number;
-  redeemed: boolean;
-  redeemed_amount: number;
-  claimed_at: string;
-}
-
-export interface AnalyticsData {
-  totalClaims: number;
-  totalLYT: number;
-  redemptionRate: number;
-  claimsPerCampaign: { name: string; claims: number }[];
-  claimsOverTime: { date: string; claims: number }[];
-}
-
-export interface TransactionRecord {
-  tx_hash: string;
-  type: string;
-  user_address: string;
-  campaign_id: number | null;
-  campaign_name: string | null;
-  amount: number;
-  ledger: number;
-  created_at: string;
-}
+export type { Campaign, Reward, AnalyticsData, TransactionRecord } from "@/types";
 
 export const api = {
   getCampaigns: (limit = 20, offset = 0) =>

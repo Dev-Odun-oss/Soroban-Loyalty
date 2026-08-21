@@ -1,13 +1,8 @@
 import { pool } from "../db";
 import { redisClient } from "../lib/redis";
+import type { AnalyticsData, CampaignAnalyticsData } from "../types";
 
-export interface AnalyticsData {
-  totalClaims: number;
-  totalLYT: number;
-  redemptionRate: number;
-  claimsPerCampaign: { name: string; claims: number }[];
-  claimsOverTime: { date: string; claims: number }[];
-}
+export type { AnalyticsData, CampaignAnalyticsData };
 
 /**
  * Aggregates reward claim metrics for the merchant analytics dashboard.
@@ -67,13 +62,6 @@ export async function getAnalytics(days: number): Promise<AnalyticsData> {
       claims: parseInt(r.claims, 10),
     })),
   };
-}
-
-export interface CampaignAnalyticsData {
-  total_campaigns: number;
-  total_claims: number;
-  claims_per_day: { date: string; count: number }[];
-  top_campaigns: { campaign_id: number; claims: number }[];
 }
 
 const CACHE_KEY = "analytics:campaigns";
