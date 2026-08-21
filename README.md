@@ -168,18 +168,41 @@ Test coverage:
 
 ## API Reference
 
+### TypeScript Types
+
+Shared types are documented in the central type definition files:
+
+| File | Types |
+|---|---|
+| `backend/src/types/index.ts` | `Campaign`, `CampaignFilters`, `Reward`, `TransactionRecord`, `AnalyticsData`, `CampaignAnalyticsData`, `AuditLogEntry`, `AuditAction`, `AuditLogFilters` |
+| `frontend/src/types/index.ts` | `Campaign`, `Reward`, `TransactionRecord`, `AnalyticsData` |
+
+Backend services re-export their types from `backend/src/types/index.ts`. Frontend components import types from `@/types` (or via the `@/lib/api` re-export for backwards compatibility).
+
 ### Campaigns
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/campaigns` | List all campaigns |
-| `GET` | `/campaigns/:id` | Get campaign by ID |
+| Method | Path | Description | Response type |
+|---|---|---|---|
+| `GET` | `/campaigns` | List all campaigns | `{ campaigns: Campaign[]; total: number }` |
+| `GET` | `/campaigns/:id` | Get campaign by ID | `{ campaign: Campaign }` |
 
 ### Rewards
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/user/:address/rewards` | Get all rewards for a user |
+| Method | Path | Description | Response type |
+|---|---|---|---|
+| `GET` | `/user/:address/rewards` | Get all rewards for a user | `{ data: Reward[]; total: number; limit: number; offset: number }` |
+
+### Transactions
+
+| Method | Path | Description | Response type |
+|---|---|---|---|
+| `GET` | `/user/:address/transactions` | Get indexed transactions for a user | `{ transactions: TransactionRecord[]; total: number }` |
+
+### Analytics
+
+| Method | Path | Description | Response type |
+|---|---|---|---|
+| `GET` | `/analytics?days=N` | Aggregated reward metrics | `AnalyticsData` |
 
 ### Health
 

@@ -1,15 +1,7 @@
 import { pool } from "../db";
+import type { TransactionRecord } from "../types";
 
-export interface TransactionRecord {
-  tx_hash: string;
-  type: string;
-  user_address: string;
-  campaign_id: number | null;
-  campaign_name: string | null;
-  amount: number;
-  ledger: number;
-  created_at: Date;
-}
+export type { TransactionRecord };
 
 /**
  * Lists indexed on-chain transactions for a user with campaign context.
