@@ -1,3 +1,11 @@
+# [1.57.0](https://github.com/soroban-loyalty/Soroban-loyalty/compare/v1.56.1...v1.57.0) (2026-08-21)
+
+
+### Features
+
+* add central TypeScript type definitions with JSDoc ([#353](https://github.com/soroban-loyalty/Soroban-loyalty/issues/353)) ([31a54f3](https://github.com/soroban-loyalty/Soroban-loyalty/commit/31a54f3f3e3514db999c86983d3970ccdaa71cc8))
+* improve form field focus and error styling ([#356](https://github.com/soroban-loyalty/Soroban-loyalty/issues/356)) ([f9f652c](https://github.com/soroban-loyalty/Soroban-loyalty/commit/f9f652c4d7bc26e4e2c847442465376217224120))
+
 ## [1.56.1](https://github.com/Dev-Odun-oss/Soroban-Loyalty/compare/v1.56.0...v1.56.1) (2026-06-02)
 
 
