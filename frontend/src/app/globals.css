@@ -461,6 +461,42 @@ body {
 .alert-success { background: var(--alert-success-bg); color: var(--alert-success-color); border: 1px solid var(--alert-success-border); }
 .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .form-group label { font-size: 0.875rem; color: var(--text-secondary); }
+
+/* ── Form input (shared base for all text/number/date inputs) ─────────────── */
+.form-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.form-input--error {
+  border-color: #dc2626;
+}
+.form-input--error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
+}
+
+/* ── Field-level error message ────────────────────────────────────────────── */
+.form-field-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #f87171;
+}
+[data-theme="light"] .form-field-error { color: #dc2626; }
+
+/* Legacy: keep .form-group input for any unsupported inputs not using .form-input */
 .form-group input {
   background: var(--bg-input);
   border: 1px solid var(--border);
