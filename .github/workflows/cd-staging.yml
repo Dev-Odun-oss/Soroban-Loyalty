@@ -9,7 +9,7 @@ jobs:
     name: Verify CI Passed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check CI workflow status
         uses: actions/github-script@v9
@@ -42,7 +42,7 @@ jobs:
       url: ${{ steps.deploy.outputs.backend_url }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
@@ -104,7 +104,7 @@ jobs:
       url: ${{ steps.deploy.outputs.frontend_url }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
