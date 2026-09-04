@@ -35,6 +35,6 @@
     "jest-axe": "^9.0.0",
     "jest-environment-jsdom": "^29.7.0",
     "ts-jest": "^29.1.4",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }
